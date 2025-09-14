@@ -3,9 +3,8 @@
 
 // IMPORTANT: You need to add `GROQ_API_KEY` and `FIREWORKS_API_KEY` to your Cloudflare environment variables.
 
-// DEFINITIVE FIX v3: Import the Groq SDK from a CDN to resolve the build error on Cloudflare.
-// This avoids the need for a package.json and npm install step.
-import Groq from 'https://esm.sh/groq-sdk@0.5.0'; // Corrected URL with https://
+// ULTIMATE FIX v4: Removed the 'groq-sdk' dependency entirely. We now use a direct `fetch` call
+// to the Groq API. This completely sidesteps the module resolution issue that was causing the deployment to fail.
 
 interface Env {
   GROQ_API_KEY: string;
@@ -24,10 +23,7 @@ interface ChatMessage {
 
 // Helper to transform conversation history for Groq (Llama 3 format)
 const buildGroqHistory = (history: ChatMessage[]) => {
-  // Take all messages except the very first "Welcome" message
   return history.slice(1).map(msg => ({
-    // FIX: The Groq API expects the 'assistant' role for model responses,
-    // but the application uses 'model'. This maps the role to be compatible.
     role: msg.role === 'model' ? 'assistant' : msg.role,
     content: msg.content,
   }));
@@ -49,8 +45,6 @@ export const onRequest = async (context: { request: Request; env: Env; waitUntil
         try {
             const { mode, history, prompt } = await request.json() as { mode: ChatMode.General | ChatMode.Coding, history: ChatMessage[], prompt: string };
             
-            const groq = new Groq({ apiKey: groqApiKey });
-
             const systemPrompt = mode === ChatMode.Coding 
                 ? "You are a world-class expert software engineer. Provide clear, concise, and correct code. Use markdown for code blocks with language identifiers."
                 : "You are a helpful and friendly AI assistant. Be insightful and thorough in your responses.";
@@ -61,28 +55,63 @@ export const onRequest = async (context: { request: Request; env: Env; waitUntil
                 { role: 'user', content: prompt }
             ];
 
-            const groqStream = await groq.chat.completions.create({
-                model: 'llama3-8b-8192', // State-of-the-art open source model
-                messages,
-                stream: true,
+            const groqResponse = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${groqApiKey}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    model: 'llama3-8b-8192',
+                    messages,
+                    stream: true,
+                }),
             });
+            
+            if (!groqResponse.ok) {
+                const errorBody = await groqResponse.text();
+                throw new Error(`Groq API Error: ${groqResponse.status} ${errorBody}`);
+            }
 
+            // Pipe the streaming response from Groq to our client
             const { readable, writable } = new TransformStream();
             const writer = writable.getWriter();
+            const reader = groqResponse.body!.getReader();
+            const decoder = new TextDecoder();
             const encoder = new TextEncoder();
 
             const streamProcessor = async () => {
+                let buffer = '';
                 try {
-                    for await (const chunk of groqStream) {
-                        const text = chunk.choices[0]?.delta?.content || '';
-                        if (text) {
-                            const sseFormattedChunk = `data: ${JSON.stringify({ text })}\n\n`;
-                            await writer.write(encoder.encode(sseFormattedChunk));
+                    while (true) {
+                        const { done, value } = await reader.read();
+                        if (done) break;
+
+                        buffer += decoder.decode(value, { stream: true });
+                        const lines = buffer.split('\n');
+                        buffer = lines.pop() || '';
+
+                        for (const line of lines) {
+                            if (line.startsWith('data:')) {
+                                const jsonString = line.substring(5).trim();
+                                if (jsonString === '[DONE]') continue;
+                                
+                                try {
+                                    const parsed = JSON.parse(jsonString);
+                                    const text = parsed.choices[0]?.delta?.content || '';
+                                    if (text) {
+                                        const clientSseChunk = `data: ${JSON.stringify({ text })}\n\n`;
+                                        await writer.write(encoder.encode(clientSseChunk));
+                                    }
+                                } catch (e) {
+                                    console.error('Failed to parse Groq stream chunk:', jsonString);
+                                }
+                            }
                         }
                     }
                 } catch (error) {
-                    console.error("Error during stream processing:", error);
-                    const errorMessage = error instanceof Error ? error.message : "Unknown stream processing error";
+                    console.error("Error during Groq stream processing:", error);
+                    const errorMessage = error instanceof Error ? error.message : "Unknown stream error";
                     const errorChunk = `data: ${JSON.stringify({ error: errorMessage })}\n\n`;
                     await writer.write(encoder.encode(errorChunk));
                 } finally {
@@ -98,7 +127,7 @@ export const onRequest = async (context: { request: Request; env: Env; waitUntil
 
         } catch (error) {
             console.error("Error in /api/stream endpoint:", error);
-            const message = error instanceof Error ? error.message : "An unknown error occurred in the stream endpoint.";
+            const message = error instanceof Error ? error.message : "An unknown error occurred.";
             return new Response(JSON.stringify({ error: "Backend stream failed", detail: message }), { 
                 status: 500,
                 headers: { 'Content-Type': 'application/json' }
@@ -119,7 +148,7 @@ export const onRequest = async (context: { request: Request; env: Env; waitUntil
                     prompt: `A high-quality, cinematic photo of: ${prompt}`,
                     height: 1024,
                     width: 1024,
-                    steps: 30, // Good balance of quality and speed
+                    steps: 30,
                 }),
             });
 
@@ -142,14 +171,11 @@ export const onRequest = async (context: { request: Request; env: Env; waitUntil
                 error: "Gagal membuat gambar.",
                 detail: message
             };
-            return new Response(JSON.stringify(errorPayload), { 
+           return new Response(JSON.stringify(errorPayload), { 
                 status: 500,
                 headers: { 'Content-Type': 'application/json' }
             });
         }
-    } else if (url.pathname.startsWith('/api/warmup')) {
-      // Warmup is no longer needed for these fast serverless platforms
-      return new Response(JSON.stringify({ message: "Warmup not required" }), { status: 200 });
     }
 
     return new Response('Not Found', { status: 404 });
