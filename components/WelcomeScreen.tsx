@@ -1,18 +1,11 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import BrandIcon from './BrandIcon';
-import { warmUpModels } from '../services/huggingFaceService';
 
 interface WelcomeScreenProps {
   onStart: () => void;
 }
 
 const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onStart }) => {
-  
-  // Trigger the AI model warm-up process as soon as the welcome screen is shown.
-  useEffect(() => {
-    warmUpModels();
-  }, []);
-
   return (
     <div className="flex items-center justify-center h-screen animate-fadeIn p-4">
       <div className="text-center p-8 max-w-2xl mx-auto bg-black/20 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-2xl">
@@ -21,7 +14,7 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onStart }) => {
           Welcome to <span className="text-transparent bg-clip-text bg-gradient-to-r from-sky-300 to-indigo-400">AtharAI Core</span>
         </h1>
         <p className="text-slate-300 text-lg mb-8" style={{ textShadow: '0 1px 5px rgba(0,0,0,0.5)' }}>
-          Powered by the Atharrazka Project, this interface utilizes advanced open-source models from Hugging Face.
+          Powered by state-of-the-art open-source models like Llama 3, accelerated by Groq for lightning-fast responses.
         </p>
         <div className="bg-black/20 border border-white/10 rounded-lg p-4 mb-8 text-left text-sm text-slate-300">
           <h2 className="font-semibold text-white mb-2">Disclaimer</h2>
@@ -29,7 +22,7 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onStart }) => {
             This is a demonstration application. The AI may produce inaccurate information. Please verify important details.
           </p>
           <p>
-            An API key is pre-configured for demo purposes. Please be mindful of usage limits.
+            API keys for Groq and Fireworks.ai are pre-configured for demo purposes. Please be mindful of usage limits.
           </p>
         </div>
         <button

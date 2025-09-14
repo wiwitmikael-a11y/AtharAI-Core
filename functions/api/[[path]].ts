@@ -1,14 +1,20 @@
 // This file should be placed in `functions/api/[[path]].ts`
-// It acts as a serverless backend proxy on Cloudflare Pages.
+// It acts as a serverless backend proxy on Cloudflare Pages, now powered by a high-speed open-source stack.
+
+// IMPORTANT: You need to add `GROQ_API_KEY` and `FIREWORKS_API_KEY` to your Cloudflare environment variables.
+
+// Although we can't add dependencies, this code assumes the Groq SDK is available.
+// In a real project, you would `npm install groq-sdk`.
+import Groq from 'groq-sdk';
 
 interface Env {
-  HUGGING_FACE_API_KEY: string;
+  GROQ_API_KEY: string;
+  FIREWORKS_API_KEY: string;
 }
 
 enum ChatMode {
   General = 'General',
   Coding = 'Coding',
-  Media = 'Media',
 }
 
 interface ChatMessage {
@@ -16,165 +22,117 @@ interface ChatMessage {
   content: string;
 }
 
-const MODELS = {
-  [ChatMode.General]: "HuggingFaceH4/zephyr-7b-beta",
-  [ChatMode.Coding]: "deepseek-ai/deepseek-coder-6.7b-instruct",
-  [ChatMode.Media]: "stabilityai/stable-diffusion-xl-base-1.0",
+// Helper to transform conversation history for Groq (Llama 3 format)
+const buildGroqHistory = (history: ChatMessage[]) => {
+  // Take all messages except the very first "Welcome" message
+  return history.slice(1).map(msg => ({
+    // FIX: The Groq API expects the 'assistant' role for model responses,
+    // but the application uses 'model'. This maps the role to be compatible.
+    role: msg.role === 'model' ? 'assistant' : msg.role,
+    content: msg.content,
+  }));
 };
 
-const HUGGING_FACE_API_URL = "https://api-inference.huggingface.co/models/";
-
-// This logic is moved from the frontend to the backend
-const assemblePrompt = (mode: ChatMode, history: ChatMessage[], newUserMessage: string): string => {
-    const contextHistory = history.length > 1 ? [] : history;
-
-    if (mode === ChatMode.Coding) {
-        const chatHistory = contextHistory.map(msg => 
-            msg.role === 'user' 
-            ? `### Instruction:\n${msg.content}` 
-            : `### Response:\n${msg.content}`
-        ).join('\n\n');
-        return `${chatHistory}\n\n### Instruction:\n${newUserMessage}\n### Response:\n`;
-    } else {
-        const systemPrompt = "<|system|>\nYou are a helpful and friendly AI assistant.</s>";
-        const chatHistory = contextHistory.map(msg =>
-            msg.role === 'user'
-            ? `<|user|>\n${msg.content}</s>`
-            : `<|assistant|>\n${msg.content}</s>`
-        ).join('\n');
-        return `${systemPrompt}\n${chatHistory}\n<|user|>\n${newUserMessage}</s>\n<|assistant|>\n`;
-    }
-};
-
-async function translatePromptToEnglish(prompt: string, apiKey: string): Promise<string> {
-    const model = MODELS[ChatMode.General];
-    const instruction = `Translate the following text from Indonesian to English. Output only the translated English text, without any additional explanations or conversational fluff. This translation will be used as a prompt for an image generation model.\n\nIndonesian text: "${prompt}"`;
-    const formattedPrompt = `<|user|>\n${instruction}</s>\n<|assistant|>\n`;
-
-    const response = await fetch(`${HUGGING_FACE_API_URL}${model}`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-            inputs: formattedPrompt,
-            parameters: { max_new_tokens: 150, temperature: 0.1 },
-        }),
-    });
-
-    if (!response.ok) throw new Error('Failed to translate prompt');
-
-    const result = await response.json();
-    const generatedText = result[0]?.generated_text || '';
-    const translationParts = generatedText.split('<|assistant|>');
-    const translation = translationParts.length > 1 ? translationParts[1].trim().replace(/<\/s>$/, '').trim() : '';
-    
-    if (!translation) throw new Error('Could not extract translation from model response.');
-    
-    return translation;
-}
-
-
-// FIX: Replace unknown `PagesFunction` with an inline type for the context.
-export const onRequest = async (context: { request: Request; env: Env }): Promise<Response> => {
-    const { request, env } = context;
+// Cloudflare Pages Function onRequest handler
+export const onRequest = async (context: { request: Request; env: Env; waitUntil: (promise: Promise<any>) => void }): Promise<Response> => {
+    const { request, env, waitUntil } = context;
     const url = new URL(request.url);
-    const apiKey = env.HUGGING_FACE_API_KEY;
+    const groqApiKey = env.GROQ_API_KEY;
+    const fireworksApiKey = env.FIREWORKS_API_KEY;
 
-    if (!apiKey) {
-      return new Response("API key is not configured.", { status: 500 });
+    if (!groqApiKey || !fireworksApiKey) {
+      return new Response("API keys for Groq and/or Fireworks are not configured.", { status: 500 });
     }
-    
-    const hfHeaders = {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-    };
 
-    // Basic routing
+    const groq = new Groq({ apiKey: groqApiKey });
+
+    // Routing
     if (url.pathname.startsWith('/api/stream')) {
-        // FIX: Use type assertion on `request.json()` as it is not a generic method.
         const { mode, history, prompt } = await request.json() as { mode: ChatMode.General | ChatMode.Coding, history: ChatMessage[], prompt: string };
-        const model = MODELS[mode];
-        const formattedPrompt = assemblePrompt(mode, history, prompt);
         
-        const hfResponse = await fetch(`${HUGGING_FACE_API_URL}${model}`, {
-            method: 'POST',
-            headers: hfHeaders,
-            body: JSON.stringify({
-                inputs: formattedPrompt,
-                parameters: { max_new_tokens: 1024, temperature: 0.7, top_p: 0.95, repetition_penalty: 1.1 },
-                stream: true,
-            }),
-        });
+        const systemPrompt = mode === ChatMode.Coding 
+            ? "You are a world-class expert software engineer. Provide clear, concise, and correct code. Use markdown for code blocks with language identifiers."
+            : "You are a helpful and friendly AI assistant. Be insightful and thorough in your responses.";
         
-        // In Cloudflare Workers, we can stream the response directly
-        const { readable, writable } = new TransformStream();
-        
-        // Start piping the body in the background
-        if (hfResponse.body) {
-            hfResponse.body.pipeTo(writable);
-        }
+        const messages = [
+            { role: 'system', content: systemPrompt },
+            ...buildGroqHistory(history),
+            { role: 'user', content: prompt }
+        ];
 
-        // Return the readable stream to the client
+        const groqStream = await groq.chat.completions.create({
+            model: 'llama3-8b-8192', // State-of-the-art open source model
+            messages,
+            stream: true,
+        });
+
+        const { readable, writable } = new TransformStream();
+        const writer = writable.getWriter();
+        const encoder = new TextEncoder();
+
+        const streamProcessor = async () => {
+            for await (const chunk of groqStream) {
+                const text = chunk.choices[0]?.delta?.content || '';
+                if (text) {
+                    const sseFormattedChunk = `data: ${JSON.stringify({ text })}\n\n`;
+                    await writer.write(encoder.encode(sseFormattedChunk));
+                }
+            }
+            await writer.close();
+        };
+
+        waitUntil(streamProcessor());
+
         return new Response(readable, {
-            headers: { 'Content-Type': 'text/event-stream' }
+            headers: { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache' }
         });
 
     } else if (url.pathname.startsWith('/api/image')) {
-        // FIX: Use type assertion on `request.json()` as it is not a generic method.
-        const { prompt } = await request.json() as {prompt: string};
+        const { prompt } = await request.json() as { prompt: string };
         
         try {
-            const translatedPrompt = await translatePromptToEnglish(prompt, apiKey);
-            const model = MODELS[ChatMode.Media];
-            
-            const hfResponse = await fetch(`${HUGGING_FACE_API_URL}${model}`, {
+            const fireworksResponse = await fetch('https://api.fireworks.ai/inference/v1/text_to_image/accounts/fireworks/models/stable-diffusion-xl-1024-v1-0', {
                 method: 'POST',
-                headers: hfHeaders,
-                body: JSON.stringify({ inputs: translatedPrompt }),
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${fireworksApiKey}`,
+                    'Accept': 'application/json',
+                },
+                body: JSON.stringify({
+                    prompt: `A high-quality, cinematic photo of: ${prompt}`,
+                    height: 1024,
+                    width: 1024,
+                    steps: 30, // Good balance of quality and speed
+                }),
             });
 
-            if (!hfResponse.ok) {
-                const errorText = await hfResponse.text();
-                return new Response(`Hugging Face API error: ${errorText}`, { status: hfResponse.status });
+            if (!fireworksResponse.ok) {
+                const errorBody = await fireworksResponse.text();
+                throw new Error(`Fireworks API Error: ${fireworksResponse.status} ${errorBody}`);
             }
 
-            return new Response(hfResponse.body, {
-                headers: { 'Content-Type': 'image/jpeg' }
+            const result = await fireworksResponse.json() as { image_b64: string };
+            const imageUrl = `data:image/png;base64,${result.image_b64}`;
+
+            return new Response(JSON.stringify({ imageUrl }), {
+                headers: { 'Content-Type': 'application/json' }
             });
+
         } catch (error) {
+            console.error("Fireworks Image Generation Error:", error);
             const message = error instanceof Error ? error.message : "Unknown error";
-            const isTranslationError = message.includes('translate') || message.includes('translation');
-            
             const errorPayload = {
-                error: isTranslationError ? "Gagal menerjemahkan prompt Anda." : "Gagal membuat gambar.",
+                error: "Gagal membuat gambar.",
                 detail: message
             };
-
             return new Response(JSON.stringify(errorPayload), { 
                 status: 500,
                 headers: { 'Content-Type': 'application/json' }
             });
         }
     } else if (url.pathname.startsWith('/api/warmup')) {
-        // Fire-and-forget warm-up requests. We don't wait for these to finish.
-        // The client gets an immediate 202 Accepted response.
-        const warmupPayload = { inputs: "Hello", parameters: { max_new_tokens: 2 } };
-
-        fetch(`${HUGGING_FACE_API_URL}${MODELS[ChatMode.General]}`, {
-            method: 'POST',
-            headers: hfHeaders,
-            body: JSON.stringify(warmupPayload),
-        }).catch(e => console.error('General model warmup failed:', e));
-
-        fetch(`${HUGGING_FACE_API_URL}${MODELS[ChatMode.Coding]}`, {
-            method: 'POST',
-            headers: hfHeaders,
-            body: JSON.stringify(warmupPayload),
-        }).catch(e => console.error('Coding model warmup failed:', e));
-        
-        return new Response(JSON.stringify({ message: "Warm-up process initiated" }), { status: 202 });
+      // Warmup is no longer needed for these fast serverless platforms
+      return new Response(JSON.stringify({ message: "Warmup not required" }), { status: 200 });
     }
 
     return new Response('Not Found', { status: 404 });

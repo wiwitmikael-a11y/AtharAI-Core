@@ -2,35 +2,33 @@ import React from 'react';
 import { ChatMode, ChatMessage } from './types';
 
 export const MODELS: { [key in ChatMode]: string } = {
-  [ChatMode.General]: "HuggingFaceH4/zephyr-7b-beta",
-  [ChatMode.Coding]: "deepseek-ai/deepseek-coder-6.7b-instruct",
-  [ChatMode.Media]: "stabilityai/stable-diffusion-xl-base-1.0",
+  [ChatMode.General]: "Llama 3 8B (via Groq)",
+  [ChatMode.Coding]: "Llama 3 8B (via Groq)",
+  [ChatMode.Media]: "Stable Diffusion XL (via Fireworks.ai)",
 };
 
 export const INITIAL_MESSAGES: { [key in ChatMode]: ChatMessage } = {
   [ChatMode.General]: {
     role: 'model',
-    content: "Welcome to General & Research Mode. I'm powered by Zephyr-7B. How can I assist you with nuanced conversation and deep analysis today?",
+    content: "Welcome to General & Research Mode. I'm powered by Meta's Llama 3, accelerated by Groq for instant responses. How can I help you today?",
   },
   [ChatMode.Coding]: {
     role: 'model',
-    content: "Welcome to Coding Mode. I'm powered by Deepseek-Coder, ready to help with code generation, debugging, and explanations. What are we building?",
+    content: "Welcome to Coding Mode. I'm running Meta's Llama 3 on Groq's lightning-fast engine. Let's build something great. What's the task?",
   },
   [ChatMode.Media]: {
     role: 'model',
-    content: "Welcome to Media Mode. Using Stable Diffusion XL, I can generate high-quality images from your text descriptions. What would you like to create?",
+    content: "Welcome to Media Mode. Using Stable Diffusion XL via Fireworks.ai, I can generate high-quality images. What visual concept do you have in mind?",
   },
 };
 
 export const IMAGE_GENERATION_PLACEHOLDERS = [
-  '🚀 Model sedang pemanasan, ini mungkin butuh waktu sebentar...',
-  'Menerjemahkan prompt Anda...',
+  '🚀 Menghubungi cluster GPU...',
   'Menyiapkan kanvas digital...',
-  'Memanggil inspirasi...',
+  'Memuat model Stable Diffusion...',
   'Melukis dengan piksel...',
   'Memberikan sentuhan akhir...',
   'Hampir selesai, menyempurnakan detail...',
-  'Proses ini mungkin memakan waktu hingga satu menit.',
 ];
 
 export const MODE_DETAILS = {
@@ -70,31 +68,31 @@ export const DownloadIcon = () => (
 );
 
 export const SendIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-    </svg>
-);
-
-export const StopIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3} aria-hidden="true">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
+        <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" />
     </svg>
 );
 
 export const UserIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+        <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
     </svg>
 );
 
 export const CopyIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
     </svg>
 );
 
 export const CopiedIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+    </svg>
+);
+
+export const StopIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1zm4 0a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
     </svg>
 );

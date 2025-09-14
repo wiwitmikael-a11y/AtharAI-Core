@@ -1,17 +1,5 @@
 import { ChatMessage, ChatMode } from '../types';
 
-export async function warmUpModels(): Promise<void> {
-  try {
-    // This is a "fire-and-forget" request. We don't need to wait for the response
-    // or handle its result. Its only purpose is to trigger the backend.
-    fetch('/api/warmup', { method: 'POST' });
-    console.log("Warming up AI models in the background...");
-  } catch (error) {
-    // This is a non-critical optimization, so we just log a warning if it fails.
-    console.warn("Model warm-up request failed to dispatch:", error);
-  }
-}
-
 export async function generateTextStream(
     mode: ChatMode.General | ChatMode.Coding,
     history: ChatMessage[],
@@ -44,7 +32,7 @@ export async function generateTextStream(
 
             buffer += decoder.decode(value, { stream: true });
             const lines = buffer.split('\n');
-            buffer = lines.pop() || ''; // Keep the last partial line in the buffer
+            buffer = lines.pop() || '';
 
             for (const line of lines) {
                 if (line.startsWith('data:')) {
@@ -52,9 +40,8 @@ export async function generateTextStream(
                     if (jsonString) {
                         try {
                             const parsed = JSON.parse(jsonString);
-                            // For streaming, Hugging Face sends a `token` object.
-                            if (parsed.token && parsed.token.text && !parsed.token.special) {
-                                onChunk(parsed.token.text);
+                            if (parsed.text) {
+                                onChunk(parsed.text);
                             }
                         } catch (e) {
                             console.error('Failed to parse stream JSON:', jsonString, e);
@@ -84,15 +71,17 @@ export async function generateImage(prompt: string, signal?: AbortSignal): Promi
     if (!response.ok) {
         try {
             const errorJson = await response.json();
-            // Use the user-friendly error from the backend, fallback to detail
             throw new Error(errorJson.error || errorJson.detail || "Terjadi kesalahan yang tidak diketahui.");
         } catch (e) {
-            // Fallback if the error response is not JSON
             const errorText = await response.text();
             throw new Error(`Image generation failed: ${response.status} ${errorText}`);
         }
     }
 
-    const blob = await response.blob();
-    return URL.createObjectURL(blob);
+    const result = await response.json();
+    if (!result.imageUrl) {
+        throw new Error("API did not return a valid image URL.");
+    }
+
+    return result.imageUrl; // Returns a Base64 data URL directly
 }
