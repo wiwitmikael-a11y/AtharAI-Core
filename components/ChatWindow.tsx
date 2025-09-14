@@ -108,8 +108,8 @@ const ChatWindow: React.FC = () => {
                 <div ref={messagesEndRef} />
             </div>
 
-            <div className="p-4 border-t border-white/10 flex items-center gap-3">
-                <form onSubmit={handleSubmit} className="relative flex-grow">
+            <div className="p-4 border-t border-white/10">
+                <form onSubmit={handleSubmit} className="relative">
                     <textarea
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
@@ -126,24 +126,19 @@ const ChatWindow: React.FC = () => {
                         aria-label="Chat input"
                     />
                     <button
-                        type="submit"
-                        disabled={isLoading || !input.trim()}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-gradient-to-br from-sky-500 to-cyan-500 text-white disabled:from-slate-600 disabled:to-slate-700 disabled:cursor-not-allowed hover:from-sky-400 transition-all duration-200 transform hover:scale-110"
-                        aria-label="Send message"
+                        type={isLoading ? "button" : "submit"}
+                        onClick={isLoading ? cancelRequest : undefined}
+                        disabled={isLoading ? false : !input.trim()}
+                        className={`absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-full text-white transition-all duration-200 transform hover:scale-110 ${
+                            isLoading
+                                ? 'bg-red-600 hover:bg-red-500'
+                                : 'bg-gradient-to-br from-sky-500 to-cyan-500 disabled:from-slate-600 disabled:to-slate-700 disabled:cursor-not-allowed hover:from-sky-400'
+                        }`}
+                        aria-label={isLoading ? "Cancel request" : "Send message"}
                     >
-                       <SendIcon />
+                        {isLoading ? <StopIcon /> : <SendIcon />}
                     </button>
                 </form>
-                 {isLoading && (
-                    <button
-                        onClick={cancelRequest}
-                        className="flex items-center gap-2 px-4 py-3 font-semibold text-slate-100 bg-red-600/90 hover:bg-red-600 rounded-lg transition-colors border border-red-500/50"
-                        aria-label="Cancel request"
-                    >
-                        <StopIcon />
-                        Cancel
-                    </button>
-                )}
             </div>
         </div>
     );

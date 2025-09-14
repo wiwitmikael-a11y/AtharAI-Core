@@ -4,16 +4,13 @@ import { ChatMessage, ChatMode } from '../types';
 import { generateTextStream, generateImage } from '../services/huggingFaceService';
 import { IMAGE_GENERATION_PLACEHOLDERS } from '../constants';
 
+const AI_THINKING_MESSAGE = '🤔 Thinking...';
+
 export const useChat = () => {
     const [input, setInput] = useState('');
     const context = useContext(AppContext);
     const placeholderIntervalRef = useRef<number | null>(null);
     const abortControllerRef = useRef<AbortController | null>(null);
-    const isFirstRequestRef = useRef({
-        [ChatMode.General]: true,
-        [ChatMode.Coding]: true,
-        [ChatMode.Media]: true,
-    });
 
     if (!context) {
         throw new Error('useChat must be used within an AppProvider');
@@ -47,11 +44,11 @@ export const useChat = () => {
         if (placeholderIntervalRef.current) {
             clearInterval(placeholderIntervalRef.current);
         }
-        // Clean up temporary messages from conversation
+        // Clean up temporary "Thinking" or placeholder messages from conversation
         setConversations(prev => {
             const currentHistory = prev[mode];
             const lastMessage = currentHistory[currentHistory.length - 1];
-            if (lastMessage && lastMessage.role === 'model' && (lastMessage.prompt?.startsWith('placeholder-') || lastMessage.content === '')) {
+            if (lastMessage && lastMessage.role === 'model' && (lastMessage.prompt?.startsWith('placeholder-') || lastMessage.content === AI_THINKING_MESSAGE)) {
                 return { ...prev, [mode]: currentHistory.slice(0, -1) };
             }
             return prev;
@@ -91,7 +88,6 @@ export const useChat = () => {
                 }, 2500);
 
                 const imageUrl = await generateImage(userInput, abortControllerRef.current.signal);
-                isFirstRequestRef.current[mode] = false; // Mark as no longer the first request
                 
                 if (placeholderIntervalRef.current) clearInterval(placeholderIntervalRef.current);
 
@@ -102,31 +98,39 @@ export const useChat = () => {
                 }));
             } else {
                 let fullResponse = '';
-                const initialContent = isFirstRequestRef.current[mode]
-                    ? "🚀 Model is warming up... First response might take up to a minute."
-                    : "";
-                const modelMessage: ChatMessage = { role: 'model', content: initialContent };
+                const thinkingMessage: ChatMessage = { role: 'model', content: AI_THINKING_MESSAGE };
                 let hasStartedStreaming = false;
 
-                setConversations(prev => ({ ...prev, [mode]: [...newMessages, modelMessage] }));
+                setConversations(prev => ({ ...prev, [mode]: [...newMessages, thinkingMessage] }));
 
                 await generateTextStream(
                     mode,
                     messages,
                     userInput,
                     (chunk) => {
-                        if (isFirstRequestRef.current[mode] && !hasStartedStreaming) {
-                            fullResponse = ''; // Clear the "warming up" message
+                        if (!hasStartedStreaming) {
+                            fullResponse = chunk; // Start new response, replacing "Thinking..."
                             hasStartedStreaming = true;
-                            isFirstRequestRef.current[mode] = false;
+                        } else {
+                            fullResponse += chunk;
                         }
-                        fullResponse += chunk;
-                        setConversations(prev => ({ ...prev, [mode]: [...newMessages, { role: 'model', content: fullResponse }] }));
+                        // Update the last message in the conversation
+                        setConversations(prev => {
+                            const currentHistory = prev[mode];
+                            const updatedHistory = [...currentHistory.slice(0, -1), { role: 'model', content: fullResponse }];
+                            return { ...prev, [mode]: updatedHistory };
+                        });
                     },
                     () => {},
                     (error) => {
                         console.error("Stream error", error);
-                        setConversations(prev => ({ ...prev, [mode]: [...newMessages, { role: 'model', content: `Maaf, terjadi kesalahan: ${error.message}` }] }));
+                        const errorMessage: ChatMessage = { role: 'model', content: `Maaf, terjadi kesalahan: ${error.message}` };
+                        // Replace the "Thinking..." message with the error
+                        setConversations(prev => {
+                            const currentHistory = prev[mode];
+                            const updatedHistory = [...currentHistory.slice(0, -1), errorMessage];
+                            return { ...prev, [mode]: updatedHistory };
+                        });
                     },
                     abortControllerRef.current.signal
                 );
