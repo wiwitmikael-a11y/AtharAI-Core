@@ -3,9 +3,9 @@
 
 // IMPORTANT: You need to add `GROQ_API_KEY` and `FIREWORKS_API_KEY` to your Cloudflare environment variables.
 
-// FIX: Import the Groq SDK from a CDN to resolve the build error on Cloudflare.
+// DEFINITIVE FIX v3: Import the Groq SDK from a CDN to resolve the build error on Cloudflare.
 // This avoids the need for a package.json and npm install step.
-import Groq from 'https://esm.sh/groq-sdk@0.5.0'; // FINAL FIX: Corrected URL with https://
+import Groq from 'https://esm.sh/groq-sdk@0.5.0'; // Corrected URL with https://
 
 interface Env {
   GROQ_API_KEY: string;
