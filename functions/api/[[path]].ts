@@ -1,13 +1,10 @@
 // This file should be placed in `functions/api/[[path]].ts`
 // It acts as a serverless backend proxy on Cloudflare Pages, now powered by a high-speed open-source stack.
 
-// IMPORTANT: You need to add `GROQ_API_KEY` and `FIREWORKS_API_KEY` to your Cloudflare environment variables.
-
-// ULTIMATE FIX v4: Removed the 'groq-sdk' dependency entirely. We now use a direct `fetch` call
-// to the Groq API. This completely sidesteps the module resolution issue that was causing the deployment to fail.
+// IMPORTANT: You need to add `HUGGING_FACE_API_KEY` and `FIREWORKS_API_KEY` to your Cloudflare environment variables.
 
 interface Env {
-  GROQ_API_KEY: string;
+  HUGGING_FACE_API_KEY: string;
   FIREWORKS_API_KEY: string;
 }
 
@@ -21,9 +18,12 @@ interface ChatMessage {
   content: string;
 }
 
-// Helper to transform conversation history for Groq (Llama 3 format)
-const buildGroqHistory = (history: ChatMessage[]) => {
-  return history.slice(1).map(msg => ({
+// Helper to transform conversation history for Hugging Face (Llama 3 format)
+const buildApiHistory = (history: ChatMessage[]) => {
+  // Remove the initial system message if it exists, as we'll provide a new one.
+  const cleanHistory = history[0]?.role === 'model' ? history.slice(1) : history;
+  
+  return cleanHistory.map(msg => ({
     role: msg.role === 'model' ? 'assistant' : msg.role,
     content: msg.content,
   }));
@@ -33,11 +33,11 @@ const buildGroqHistory = (history: ChatMessage[]) => {
 export const onRequest = async (context: { request: Request; env: Env; waitUntil: (promise: Promise<any>) => void }): Promise<Response> => {
     const { request, env, waitUntil } = context;
     const url = new URL(request.url);
-    const groqApiKey = env.GROQ_API_KEY;
+    const hfApiKey = env.HUGGING_FACE_API_KEY;
     const fireworksApiKey = env.FIREWORKS_API_KEY;
 
-    if (!groqApiKey || !fireworksApiKey) {
-      return new Response("API keys for Groq and/or Fireworks are not configured.", { status: 500 });
+    if (!hfApiKey || !fireworksApiKey) {
+      return new Response("API keys for Hugging Face and/or Fireworks are not configured.", { status: 500 });
     }
 
     // Routing
@@ -51,32 +51,34 @@ export const onRequest = async (context: { request: Request; env: Env; waitUntil
             
             const messages = [
                 { role: 'system', content: systemPrompt },
-                ...buildGroqHistory(history),
+                ...buildApiHistory(history),
                 { role: 'user', content: prompt }
             ];
-
-            const groqResponse = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+            
+            // Using Hugging Face's OpenAI-compatible endpoint for easier integration
+            const apiResponse = await fetch('https://api-inference.huggingface.co/v1/chat/completions', {
                 method: 'POST',
                 headers: {
-                    'Authorization': `Bearer ${groqApiKey}`,
+                    'Authorization': `Bearer ${hfApiKey}`,
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    model: 'llama3-8b-8192',
+                    model: 'meta-llama/Meta-Llama-3-8B-Instruct',
                     messages,
                     stream: true,
+                    max_tokens: 4096,
                 }),
             });
             
-            if (!groqResponse.ok) {
-                const errorBody = await groqResponse.text();
-                throw new Error(`Groq API Error: ${groqResponse.status} ${errorBody}`);
+            if (!apiResponse.ok) {
+                const errorBody = await apiResponse.text();
+                throw new Error(`Hugging Face API Error: ${apiResponse.status} ${errorBody}`);
             }
 
-            // Pipe the streaming response from Groq to our client
+            // The streaming logic can remain the same because the endpoint is OpenAI-compatible
             const { readable, writable } = new TransformStream();
             const writer = writable.getWriter();
-            const reader = groqResponse.body!.getReader();
+            const reader = apiResponse.body!.getReader();
             const decoder = new TextDecoder();
             const encoder = new TextEncoder();
 
@@ -104,13 +106,13 @@ export const onRequest = async (context: { request: Request; env: Env; waitUntil
                                         await writer.write(encoder.encode(clientSseChunk));
                                     }
                                 } catch (e) {
-                                    console.error('Failed to parse Groq stream chunk:', jsonString);
+                                    console.error('Failed to parse API stream chunk:', jsonString);
                                 }
                             }
                         }
                     }
                 } catch (error) {
-                    console.error("Error during Groq stream processing:", error);
+                    console.error("Error during API stream processing:", error);
                     const errorMessage = error instanceof Error ? error.message : "Unknown stream error";
                     const errorChunk = `data: ${JSON.stringify({ error: errorMessage })}\n\n`;
                     await writer.write(encoder.encode(errorChunk));

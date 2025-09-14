@@ -2,8 +2,8 @@ import * as React from 'react';
 import { ChatMode, ChatMessage } from './types';
 
 export const MODELS: { [key in ChatMode]: string } = {
-  [ChatMode.General]: "Llama 3 8B (via Groq)",
-  [ChatMode.Coding]: "Llama 3 8B (via Groq)",
+  [ChatMode.General]: "Llama 3 8B (via Hugging Face)",
+  [ChatMode.Coding]: "Llama 3 8B (via Hugging Face)",
   [ChatMode.Media]: "Stable Diffusion XL (via Fireworks.ai)",
   [ChatMode.Todo]: "Local Task Management",
 };
@@ -11,11 +11,11 @@ export const MODELS: { [key in ChatMode]: string } = {
 export const INITIAL_MESSAGES: { [key in ChatMode]: ChatMessage } = {
   [ChatMode.General]: {
     role: 'model',
-    content: "Welcome to General & Research Mode. I'm powered by Meta's Llama 3, accelerated by Groq for instant responses. How can I help you today?",
+    content: "Welcome to General & Research Mode. I'm powered by Meta's Llama 3, running on the Hugging Face platform. How can I help you today?",
   },
   [ChatMode.Coding]: {
     role: 'model',
-    content: "Welcome to Coding Mode. I'm running Meta's Llama 3 on Groq's lightning-fast engine. Let's build something great. What's the task?",
+    content: "Welcome to Coding Mode. I'm running Meta's Llama 3 on the Hugging Face inference platform. Let's build something great. What's the task?",
   },
   [ChatMode.Media]: {
     role: 'model',
