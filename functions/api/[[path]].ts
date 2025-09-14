@@ -85,6 +85,11 @@ export const onRequest = async (context: { request: Request; env: Env }): Promis
     if (!apiKey) {
       return new Response("API key is not configured.", { status: 500 });
     }
+    
+    const hfHeaders = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+    };
 
     // Basic routing
     if (url.pathname.startsWith('/api/stream')) {
@@ -95,10 +100,7 @@ export const onRequest = async (context: { request: Request; env: Env }): Promis
         
         const hfResponse = await fetch(`${HUGGING_FACE_API_URL}${model}`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${apiKey}`,
-            },
+            headers: hfHeaders,
             body: JSON.stringify({
                 inputs: formattedPrompt,
                 parameters: { max_new_tokens: 1024, temperature: 0.7, top_p: 0.95, repetition_penalty: 1.1 },
@@ -129,10 +131,7 @@ export const onRequest = async (context: { request: Request; env: Env }): Promis
             
             const hfResponse = await fetch(`${HUGGING_FACE_API_URL}${model}`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${apiKey}`,
-                },
+                headers: hfHeaders,
                 body: JSON.stringify({ inputs: translatedPrompt }),
             });
 
@@ -146,8 +145,36 @@ export const onRequest = async (context: { request: Request; env: Env }): Promis
             });
         } catch (error) {
             const message = error instanceof Error ? error.message : "Unknown error";
-            return new Response(`Image generation failed: ${message}`, { status: 500 });
+            const isTranslationError = message.includes('translate') || message.includes('translation');
+            
+            const errorPayload = {
+                error: isTranslationError ? "Gagal menerjemahkan prompt Anda." : "Gagal membuat gambar.",
+                detail: message
+            };
+
+            return new Response(JSON.stringify(errorPayload), { 
+                status: 500,
+                headers: { 'Content-Type': 'application/json' }
+            });
         }
+    } else if (url.pathname.startsWith('/api/warmup')) {
+        // Fire-and-forget warm-up requests. We don't wait for these to finish.
+        // The client gets an immediate 202 Accepted response.
+        const warmupPayload = { inputs: "Hello", parameters: { max_new_tokens: 2 } };
+
+        fetch(`${HUGGING_FACE_API_URL}${MODELS[ChatMode.General]}`, {
+            method: 'POST',
+            headers: hfHeaders,
+            body: JSON.stringify(warmupPayload),
+        }).catch(e => console.error('General model warmup failed:', e));
+
+        fetch(`${HUGGING_FACE_API_URL}${MODELS[ChatMode.Coding]}`, {
+            method: 'POST',
+            headers: hfHeaders,
+            body: JSON.stringify(warmupPayload),
+        }).catch(e => console.error('Coding model warmup failed:', e));
+        
+        return new Response(JSON.stringify({ message: "Warm-up process initiated" }), { status: 202 });
     }
 
     return new Response('Not Found', { status: 404 });

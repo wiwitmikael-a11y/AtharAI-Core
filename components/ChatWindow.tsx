@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState, useContext } from 'react';
 import { ChatMessage, ChatMode } from '../types';
-import { MODE_DETAILS, DownloadIcon, SendIcon, UserIcon, CopyIcon, CopiedIcon } from '../constants';
+import { MODE_DETAILS, DownloadIcon, SendIcon, UserIcon, CopyIcon, CopiedIcon, StopIcon } from '../constants';
 import BrandIcon from './BrandIcon';
 import { AppContext } from '../context/AppContext';
 import { useChat } from '../hooks/useChat';
@@ -49,11 +49,10 @@ const ChatWindow: React.FC = () => {
     const context = useContext(AppContext);
     
     if (!context) throw new Error('ChatWindow must be used within an AppProvider');
-    // FIX: Destructure `activeMode` and `conversations` from context and derive `messages`.
     const { activeMode: mode, conversations, isLoading } = context;
     const messages = conversations[mode];
     
-    const { input, setInput, sendMessage } = useChat();
+    const { input, setInput, sendMessage, cancelRequest } = useChat();
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -109,8 +108,8 @@ const ChatWindow: React.FC = () => {
                 <div ref={messagesEndRef} />
             </div>
 
-            <div className="p-4 border-t border-white/10">
-                <form onSubmit={handleSubmit} className="relative">
+            <div className="p-4 border-t border-white/10 flex items-center gap-3">
+                <form onSubmit={handleSubmit} className="relative flex-grow">
                     <textarea
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
@@ -132,13 +131,19 @@ const ChatWindow: React.FC = () => {
                         className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-gradient-to-br from-sky-500 to-cyan-500 text-white disabled:from-slate-600 disabled:to-slate-700 disabled:cursor-not-allowed hover:from-sky-400 transition-all duration-200 transform hover:scale-110"
                         aria-label="Send message"
                     >
-                        {isLoading ? (
-                            <div className="w-6 h-6 border-2 border-t-transparent border-white rounded-full animate-spin"></div>
-                        ) : (
-                            <SendIcon />
-                        )}
+                       <SendIcon />
                     </button>
                 </form>
+                 {isLoading && (
+                    <button
+                        onClick={cancelRequest}
+                        className="flex items-center gap-2 px-4 py-3 font-semibold text-slate-100 bg-red-600/90 hover:bg-red-600 rounded-lg transition-colors border border-red-500/50"
+                        aria-label="Cancel request"
+                    >
+                        <StopIcon />
+                        Cancel
+                    </button>
+                )}
             </div>
         </div>
     );

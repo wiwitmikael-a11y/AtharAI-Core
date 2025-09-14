@@ -7,7 +7,7 @@ import BrandIcon from './components/BrandIcon';
 import { AppProvider, AppContext } from './context/AppContext';
 
 const HamburgerIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
     </svg>
 );
@@ -27,7 +27,7 @@ const AppLayout: React.FC = () => {
     }
 
     const SidebarContent = () => (
-      <>
+      <div className="flex flex-col h-full">
         <header className="flex items-center gap-3 mb-8">
             <BrandIcon className="w-10 h-10" />
             <h1 className="text-2xl font-bold">AtharAI Core</h1>
@@ -45,23 +45,23 @@ const AppLayout: React.FC = () => {
                               setSidebarOpen(false);
                             }
                         }}
-                        className={`w-full flex items-center gap-3 p-3 rounded-lg text-left transition-all duration-200 border border-transparent ${
+                        className={`group w-full flex items-center gap-3 p-3 rounded-lg text-left transition-all duration-200 border ${
                             isActive 
-                            ? 'bg-white/20 text-white border-white/20' 
-                            : 'hover:bg-white/10 hover:border-white/10 text-slate-300'
+                            ? 'bg-sky-500/20 text-sky-200 font-semibold border-sky-400/30' 
+                            : 'border-transparent text-slate-300 hover:bg-white/10 hover:text-white'
                         }`}
                     >
-                        <span className={isActive ? 'text-sky-300' : ''}>{MODE_DETAILS[mode].icon}</span>
+                        <span className={`transition-colors ${isActive ? 'text-sky-300' : 'text-slate-400 group-hover:text-sky-300'}`}>{MODE_DETAILS[mode].icon}</span>
                         <span className="font-medium">{MODE_DETAILS[mode].name}</span>
                     </button>
                 );
             })}
         </nav>
-        <footer className="text-center text-xs text-slate-400 mt-4">
+        <footer className="text-center text-xs text-slate-400 mt-auto pt-4 border-t border-white/10">
             <p>Powered by Open Source Models</p>
             <p>&copy; {new Date().getFullYear()} Atharrazka Project</p>
         </footer>
-      </>
+      </div>
     );
 
     return (
@@ -80,7 +80,7 @@ const AppLayout: React.FC = () => {
 
             {/* Main Chat Area */}
             <main className="flex-1 flex flex-col">
-                 <button onClick={() => setSidebarOpen(true)} className="md:hidden p-2 absolute top-4 left-4 z-10 text-white bg-black/20 rounded-md">
+                 <button onClick={() => setSidebarOpen(true)} className="md:hidden p-2 absolute top-4 left-4 z-10 text-white bg-black/20 rounded-md" aria-label="Open menu">
                     <HamburgerIcon />
                 </button>
                 <ChatWindow />

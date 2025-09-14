@@ -1,11 +1,18 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import BrandIcon from './BrandIcon';
+import { warmUpModels } from '../services/huggingFaceService';
 
 interface WelcomeScreenProps {
   onStart: () => void;
 }
 
 const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onStart }) => {
+  
+  // Trigger the AI model warm-up process as soon as the welcome screen is shown.
+  useEffect(() => {
+    warmUpModels();
+  }, []);
+
   return (
     <div className="flex items-center justify-center h-screen animate-fadeIn p-4">
       <div className="text-center p-8 max-w-2xl mx-auto bg-black/20 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-2xl">
