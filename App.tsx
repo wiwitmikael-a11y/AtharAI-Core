@@ -5,7 +5,7 @@ import WelcomeScreen from './components/WelcomeScreen';
 import ChatWindow from './components/ChatWindow';
 import TodoWindow from './components/TodoWindow';
 import BrandIcon from './components/BrandIcon';
-import { AppProvider, AppContext } from './context/AppContext';
+import { AppContext } from './context/AppContext';
 
 const HamburgerIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
@@ -13,7 +13,7 @@ const HamburgerIcon = () => (
     </svg>
 );
 
-const AppLayout: React.FC = () => {
+const App: React.FC = () => {
     const [showWelcome, setShowWelcome] = React.useState(true);
     const [isSidebarOpen, setSidebarOpen] = React.useState(false);
     const context = React.useContext(AppContext);
@@ -89,11 +89,5 @@ const AppLayout: React.FC = () => {
         </div>
     );
 };
-
-const App: React.FC = () => (
-    <AppProvider>
-        <AppLayout />
-    </AppProvider>
-);
 
 export default App;
