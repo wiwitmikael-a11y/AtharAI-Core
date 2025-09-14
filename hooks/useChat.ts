@@ -1,3 +1,4 @@
+
 import * as React from 'react';
 import { ChatMode, ChatMessage } from '../types';
 import { generateTextStream, generateImage } from '../services/huggingFaceService';
@@ -20,6 +21,21 @@ export const useChat = () => {
 
     const abortControllerRef = React.useRef<AbortController | null>(null);
     const placeholderIntervalRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
+    const timeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    const cleanupAfterRequest = () => {
+        if (placeholderIntervalRef.current) {
+            clearInterval(placeholderIntervalRef.current);
+            placeholderIntervalRef.current = null;
+        }
+        if (timeoutRef.current) {
+            clearTimeout(timeoutRef.current);
+            timeoutRef.current = null;
+        }
+        setIsLoading(false);
+        setStreamingMessage(null);
+        abortControllerRef.current = null;
+    };
 
     const sendMessage = React.useCallback(async (userInput: string) => {
         if (!userInput.trim() || isLoading) return;
@@ -32,32 +48,36 @@ export const useChat = () => {
         abortControllerRef.current = new AbortController();
         const signal = abortControllerRef.current.signal;
 
+        // Set a timeout to prevent indefinite loading for large models
+        const timeoutDuration = activeMode === ChatMode.Media ? 180000 : 120000; // 3 mins for images, 2 mins for text
+        timeoutRef.current = setTimeout(() => {
+            abortControllerRef.current?.abort();
+        }, timeoutDuration);
+
         try {
             if (activeMode === ChatMode.Media) {
                 let placeholderIndex = 0;
-                // Create a dedicated loading message state
                 const tempImageMessage: ChatMessage = {
                     role: 'model',
                     content: IMAGE_GENERATION_PLACEHOLDERS[placeholderIndex],
                     prompt: userInput,
-                    isLoading: true, // Mark this message for special rendering
+                    isLoading: true,
                 };
                 setConversations(prev => ({...prev, [activeMode]: [...updatedConversation, tempImageMessage]}));
 
-                // Cycle through placeholder texts
                 placeholderIntervalRef.current = setInterval(() => {
                     placeholderIndex = (placeholderIndex + 1) % IMAGE_GENERATION_PLACEHOLDERS.length;
                     const newContent = IMAGE_GENERATION_PLACEHOLDERS[placeholderIndex];
                     setConversations(prev => {
                         const conv = [...prev[activeMode]];
                         const lastMsg = conv[conv.length - 1];
-                        if (lastMsg && lastMsg.role === 'model' && lastMsg.isLoading) {
+                        if (lastMsg?.role === 'model' && lastMsg.isLoading) {
                             lastMsg.content = newContent;
                             return { ...prev, [activeMode]: conv };
                         }
                         return prev;
                     });
-                }, 2500);
+                }, 3500); // Slower interval for longer wait
 
                 const imageUrl = await generateImage(userInput, signal);
 
@@ -68,9 +88,8 @@ export const useChat = () => {
                     prompt: userInput,
                 };
                 
-                // Replace the loading message with the final image message
                 setConversations(prev => {
-                     const conv = [...updatedConversation]; // Start from after the user message
+                     const conv = [...updatedConversation];
                      return { ...prev, [activeMode]: [...conv, finalImageMessage] };
                 });
 
@@ -97,40 +116,41 @@ export const useChat = () => {
                 }));
             }
         } catch (error) {
-            if ((error as Error).name !== 'AbortError') {
-                console.error("Error during generation:", error);
-                const errorMessage = { role: 'model', content: `Sorry, an error occurred: ${(error as Error).message}` };
+            console.error("Error during generation:", error);
+            let errorContent: string;
+
+            if ((error as Error).name === 'AbortError') {
+                errorContent = "Maaf, permintaan membutuhkan waktu terlalu lama untuk direspon. Ini kemungkinan karena layanan gratis sedang sibuk atau sedang memuat model besar untuk pertama kalinya. Silakan coba lagi sesaat lagi.";
+            } else {
+                errorContent = `Maaf, terjadi kesalahan: ${(error as Error).message}`;
+            }
+
+            // Replace loading message or add new error message
+            if (activeMode === ChatMode.Media) {
+                setConversations(prev => {
+                    const conv = [...updatedConversation];
+                    return { ...prev, [activeMode]: [...conv, { role: 'model', content: errorContent }] };
+                });
+            } else {
+                const errorMessage = { role: 'model', content: errorContent };
                 setConversations(prev => ({ ...prev, [activeMode]: [...updatedConversation, errorMessage] }));
             }
         } finally {
-            if (placeholderIntervalRef.current) {
-                clearInterval(placeholderIntervalRef.current);
-                placeholderIntervalRef.current = null;
-            }
-            setIsLoading(false);
-            setStreamingMessage(null);
-            abortControllerRef.current = null;
+            cleanupAfterRequest();
         }
     }, [activeMode, conversations, isLoading, setConversations, setIsLoading, setStreamingMessage]);
     
     const cancelRequest = React.useCallback(() => {
         if (abortControllerRef.current) {
             abortControllerRef.current.abort();
-            abortControllerRef.current = null;
         }
-        if (placeholderIntervalRef.current) {
-            clearInterval(placeholderIntervalRef.current);
-            placeholderIntervalRef.current = null;
-        }
-        setIsLoading(false);
-        setStreamingMessage(null);
+        cleanupAfterRequest();
 
         if (activeMode === ChatMode.Media) {
-             // Remove the loading message on cancellation
             setConversations(prev => {
                 const currentConversation = prev[activeMode];
                 const lastMessage = currentConversation[currentConversation.length - 1];
-                if (lastMessage && lastMessage.role === 'model' && lastMessage.isLoading) {
+                if (lastMessage?.role === 'model' && lastMessage.isLoading) {
                     return { ...prev, [activeMode]: currentConversation.slice(0, -1) };
                 }
                 return prev;

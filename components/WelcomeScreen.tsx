@@ -1,3 +1,4 @@
+
 import * as React from 'react';
 import BrandIcon from './BrandIcon';
 
@@ -14,15 +15,15 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onStart }) => {
           Welcome to <span className="text-transparent bg-clip-text bg-gradient-to-r from-sky-300 to-indigo-400">AtharAI Core</span>
         </h1>
         <p className="text-slate-300 text-lg mb-8" style={{ textShadow: '0 1px 5px rgba(0,0,0,0.5)' }}>
-          Powered by state-of-the-art open-source models like Llama 3, accelerated by Groq for lightning-fast responses.
+          Powered by state-of-the-art open-source models like Meta's Llama 3 70B and Stable Diffusion XL, via Hugging Face's free public endpoints.
         </p>
         <div className="bg-black/20 border border-white/10 rounded-lg p-4 mb-8 text-left text-sm text-slate-300">
-          <h2 className="font-semibold text-white mb-2">Disclaimer</h2>
+          <h2 className="font-semibold text-white mb-2">Penting: Harap Bersabar</h2>
           <p className="mb-2">
-            This is a demonstration application. The AI may produce inaccurate information. Please verify important details.
+            Anda akan menggunakan model AI yang sangat besar (70 miliar parameter) pada layanan publik gratis. <strong>Permintaan pertama Anda mungkin membutuhkan waktu satu menit atau lebih untuk memuat model.</strong> Harap bersabar.
           </p>
           <p>
-            API keys for Groq and Fireworks.ai are pre-configured for demo purposes. Please be mindful of usage limits.
+            AI dapat menghasilkan informasi yang tidak akurat. Tidak diperlukan kunci API.
           </p>
         </div>
         <button

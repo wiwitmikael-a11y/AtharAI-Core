@@ -1,25 +1,26 @@
+
 import * as React from 'react';
 import { ChatMode, ChatMessage } from './types';
 
 export const MODELS: { [key in ChatMode]: string } = {
-  [ChatMode.General]: "Llama 3 8B (via Hugging Face)",
-  [ChatMode.Coding]: "Llama 3 8B (via Hugging Face)",
-  [ChatMode.Media]: "Stable Diffusion XL (via Fireworks.ai)",
+  [ChatMode.General]: "Llama 3 70B (via Hugging Face)",
+  [ChatMode.Coding]: "Llama 3 70B (via Hugging Face)",
+  [ChatMode.Media]: "Stable Diffusion XL (via Hugging Face)",
   [ChatMode.Todo]: "Local Task Management",
 };
 
 export const INITIAL_MESSAGES: { [key in ChatMode]: ChatMessage } = {
   [ChatMode.General]: {
     role: 'model',
-    content: "Welcome to General & Research Mode. I'm powered by Meta's Llama 3, running on the Hugging Face platform. How can I help you today?",
+    content: "Welcome to General & Research Mode. You're now connected to Meta's Llama 3 70B, a state-of-the-art model running on a free public endpoint. Responses may be slower but are significantly more powerful. How can I assist you?",
   },
   [ChatMode.Coding]: {
     role: 'model',
-    content: "Welcome to Coding Mode. I'm running Meta's Llama 3 on the Hugging Face inference platform. Let's build something great. What's the task?",
+    content: "Welcome to Coding Mode, powered by Llama 3 70B. This is one of the most advanced open-source coding models available. Please be patient, as the first request might take a moment to initialize. Let's build something incredible.",
   },
   [ChatMode.Media]: {
     role: 'model',
-    content: "Welcome to Media Mode. Using Stable Diffusion XL via Fireworks.ai, I can generate high-quality images. What visual concept do you have in mind?",
+    content: "Welcome to Media Mode. I now use the full Stable Diffusion XL model for maximum image quality. This is slower than Turbo, but the results are far more detailed. What masterpiece shall we create?",
   },
   [ChatMode.Todo]: {
     role: 'model', // This is just a placeholder and won't be displayed
@@ -28,12 +29,12 @@ export const INITIAL_MESSAGES: { [key in ChatMode]: ChatMessage } = {
 };
 
 export const IMAGE_GENERATION_PLACEHOLDERS = [
-  '🚀 Menghubungi cluster GPU...',
-  'Menyiapkan kanvas digital...',
-  'Memuat model Stable Diffusion...',
-  'Melukis dengan piksel...',
-  'Memberikan sentuhan akhir...',
-  'Hampir selesai, menyempurnakan detail...',
+  '🚀 Allocating high-performance GPU on the public cluster...',
+  'Loading the full Stable Diffusion XL model (10GB+)...',
+  'Analyzing prompt for artistic interpretation...',
+  'Rendering initial image draft...',
+  'Applying high-resolution refinement steps...',
+  'Finalizing composition and details...',
 ];
 
 export const MODE_DETAILS = {
@@ -44,7 +45,7 @@ export const MODE_DETAILS = {
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9V3m0 18a9 9 0 009-9m-9 9a9 9 0 00-9-9" />
       </svg>
     ),
-    placeholder: 'Ask me anything...'
+    placeholder: 'Ask Llama 3 70B anything...'
   },
   [ChatMode.Coding]: {
     name: 'Coding',
@@ -53,7 +54,7 @@ export const MODE_DETAILS = {
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
       </svg>
     ),
-    placeholder: 'Describe the code you need...'
+    placeholder: 'Describe the code for Llama 3...'
   },
   [ChatMode.Media]: {
     name: 'Media',
@@ -62,7 +63,7 @@ export const MODE_DETAILS = {
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
       </svg>
     ),
-    placeholder: 'Describe the image to generate...'
+    placeholder: 'Describe an image for SDXL...'
   },
   [ChatMode.Todo]: {
     name: 'To-Do List',

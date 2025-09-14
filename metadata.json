@@ -1,5 +1,5 @@
 {
   "name": "AtharAI Core",
-  "description": "A modern chat interface powered by Hugging Face models, offering modes for general conversation, coding assistance, and image generation. This is a premium, responsive, and professional AI tool ready for deployment.",
+  "description": "A modern chat interface powered by Meta's Llama 3 70B and Stable Diffusion XL, running on Hugging Face's free public inference API. No API keys required.",
   "requestFramePermissions": []
 }

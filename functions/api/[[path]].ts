@@ -1,12 +1,9 @@
+
 // This file should be placed in `functions/api/[[path]].ts`
-// It acts as a serverless backend proxy on Cloudflare Pages, now powered by a high-speed open-source stack.
+// It acts as a serverless backend proxy on Cloudflare Pages, now powered by the free Hugging Face Inference API.
+// NO API KEYS ARE REQUIRED.
 
-// IMPORTANT: You need to add `HUGGING_FACE_API_KEY` and `FIREWORKS_API_KEY` to your Cloudflare environment variables.
-
-interface Env {
-  HUGGING_FACE_API_KEY: string;
-  FIREWORKS_API_KEY: string;
-}
+interface Env {} // No environment variables are needed anymore.
 
 enum ChatMode {
   General = 'General',
@@ -18,7 +15,7 @@ interface ChatMessage {
   content: string;
 }
 
-// Helper to transform conversation history for Hugging Face (Llama 3 format)
+// Helper to transform conversation history for Hugging Face TGI format
 const buildApiHistory = (history: ChatMessage[]) => {
   // Remove the initial system message if it exists, as we'll provide a new one.
   const cleanHistory = history[0]?.role === 'model' ? history.slice(1) : history;
@@ -29,16 +26,21 @@ const buildApiHistory = (history: ChatMessage[]) => {
   }));
 };
 
+// Helper to convert an ArrayBuffer to a Base64 string in a Cloudflare Worker environment
+const arrayBufferToBase64 = (buffer: ArrayBuffer) => {
+    let binary = '';
+    const bytes = new Uint8Array(buffer);
+    for (let i = 0; i < bytes.length; i++) {
+        binary += String.fromCharCode(bytes[i]);
+    }
+    return btoa(binary);
+};
+
+
 // Cloudflare Pages Function onRequest handler
 export const onRequest = async (context: { request: Request; env: Env; waitUntil: (promise: Promise<any>) => void }): Promise<Response> => {
-    const { request, env, waitUntil } = context;
+    const { request, waitUntil } = context;
     const url = new URL(request.url);
-    const hfApiKey = env.HUGGING_FACE_API_KEY;
-    const fireworksApiKey = env.FIREWORKS_API_KEY;
-
-    if (!hfApiKey || !fireworksApiKey) {
-      return new Response("API keys for Hugging Face and/or Fireworks are not configured.", { status: 500 });
-    }
 
     // Routing
     if (url.pathname.startsWith('/api/stream')) {
@@ -46,8 +48,8 @@ export const onRequest = async (context: { request: Request; env: Env; waitUntil
             const { mode, history, prompt } = await request.json() as { mode: ChatMode.General | ChatMode.Coding, history: ChatMessage[], prompt: string };
             
             const systemPrompt = mode === ChatMode.Coding 
-                ? "You are a world-class expert software engineer. Provide clear, concise, and correct code. Use markdown for code blocks with language identifiers."
-                : "You are a helpful and friendly AI assistant. Be insightful and thorough in your responses.";
+                ? "You are an elite software architect and programmer named AtharAI. Your code is clean, efficient, and follows best practices. Provide detailed explanations for your code. Use markdown for all code blocks, specifying the language."
+                : "You are AtharAI, a helpful and friendly AI assistant based on Llama 3. Be insightful, comprehensive, and thorough in your responses.";
             
             const messages = [
                 { role: 'system', content: systemPrompt },
@@ -55,15 +57,15 @@ export const onRequest = async (context: { request: Request; env: Env; waitUntil
                 { role: 'user', content: prompt }
             ];
             
-            // Using Hugging Face's OpenAI-compatible endpoint for easier integration
+            // Using Hugging Face's TGI endpoint with a state-of-the-art model
             const apiResponse = await fetch('https://api-inference.huggingface.co/v1/chat/completions', {
                 method: 'POST',
                 headers: {
-                    'Authorization': `Bearer ${hfApiKey}`,
                     'Content-Type': 'application/json',
+                    // NO 'Authorization' header is needed for the free public API
                 },
                 body: JSON.stringify({
-                    model: 'meta-llama/Meta-Llama-3-8B-Instruct',
+                    model: 'meta-llama/Meta-Llama-3-70B-Instruct', // Upgraded to SOTA model
                     messages,
                     stream: true,
                     max_tokens: 4096,
@@ -72,6 +74,7 @@ export const onRequest = async (context: { request: Request; env: Env; waitUntil
             
             if (!apiResponse.ok) {
                 const errorBody = await apiResponse.text();
+                console.error("Hugging Face API Error:", errorBody);
                 throw new Error(`Hugging Face API Error: ${apiResponse.status} ${errorBody}`);
             }
 
@@ -106,16 +109,13 @@ export const onRequest = async (context: { request: Request; env: Env; waitUntil
                                         await writer.write(encoder.encode(clientSseChunk));
                                     }
                                 } catch (e) {
-                                    console.error('Failed to parse API stream chunk:', jsonString);
+                                    // Ignore empty or malformed chunks
                                 }
                             }
                         }
                     }
                 } catch (error) {
                     console.error("Error during API stream processing:", error);
-                    const errorMessage = error instanceof Error ? error.message : "Unknown stream error";
-                    const errorChunk = `data: ${JSON.stringify({ error: errorMessage })}\n\n`;
-                    await writer.write(encoder.encode(errorChunk));
                 } finally {
                     await writer.close();
                 }
@@ -139,35 +139,42 @@ export const onRequest = async (context: { request: Request; env: Env; waitUntil
     } else if (url.pathname.startsWith('/api/image')) {
         try {
             const { prompt } = await request.json() as { prompt: string };
-            const fireworksResponse = await fetch('https://api.fireworks.ai/inference/v1/text_to_image/accounts/fireworks/models/stable-diffusion-xl-1024-v1-0', {
+            // Switched to SDXL Base for higher quality image generation
+            const hfResponse = await fetch('https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${fireworksApiKey}`,
-                    'Accept': 'application/json',
+                    // NO 'Authorization' header is needed
                 },
                 body: JSON.stringify({
-                    prompt: `A high-quality, cinematic photo of: ${prompt}`,
-                    height: 1024,
-                    width: 1024,
-                    steps: 30,
+                    inputs: prompt,
                 }),
             });
 
-            if (!fireworksResponse.ok) {
-                const errorBody = await fireworksResponse.text();
-                throw new Error(`Fireworks API Error: ${fireworksResponse.status} ${errorBody}`);
+            if (!hfResponse.ok) {
+                const errorBody = await hfResponse.text();
+                 try {
+                    const errorJson = JSON.parse(errorBody);
+                    // Hugging Face can return an "estimated_time" error when the model is loading
+                    if (errorJson.error && errorJson.estimated_time) {
+                        throw new Error(`Model is currently loading, please try again in ${Math.ceil(errorJson.estimated_time)} seconds.`);
+                    }
+                    throw new Error(errorJson.error || `Hugging Face Image API Error: ${hfResponse.status}`);
+                } catch (e) {
+                    throw new Error(`Hugging Face Image API Error: ${hfResponse.status} ${errorBody}`);
+                }
             }
-
-            const result = await fireworksResponse.json() as { image_b64: string };
-            const imageUrl = `data:image/png;base64,${result.image_b64}`;
+            
+            const imageBuffer = await hfResponse.arrayBuffer();
+            const base64Image = arrayBufferToBase64(imageBuffer);
+            const imageUrl = `data:image/jpeg;base64,${base64Image}`;
 
             return new Response(JSON.stringify({ imageUrl }), {
                 headers: { 'Content-Type': 'application/json' }
             });
 
         } catch (error) {
-            console.error("Fireworks Image Generation Error:", error);
+            console.error("Hugging Face Image Generation Error:", error);
             const message = error instanceof Error ? error.message : "Unknown error";
             const errorPayload = {
                 error: "Gagal membuat gambar.",
