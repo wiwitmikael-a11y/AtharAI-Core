@@ -3,6 +3,7 @@ import { ChatMode } from './types';
 import { MODE_DETAILS } from './constants';
 import WelcomeScreen from './components/WelcomeScreen';
 import ChatWindow from './components/ChatWindow';
+import TodoWindow from './components/TodoWindow';
 import BrandIcon from './components/BrandIcon';
 import { AppProvider, AppContext } from './context/AppContext';
 
@@ -78,12 +79,12 @@ const AppLayout: React.FC = () => {
                 <SidebarContent />
             </aside>
 
-            {/* Main Chat Area */}
+            {/* Main Content Area */}
             <main className="flex-1 flex flex-col">
                  <button onClick={() => setSidebarOpen(true)} className="md:hidden p-2 absolute top-4 left-4 z-10 text-white bg-black/20 rounded-md" aria-label="Open menu">
                     <HamburgerIcon />
                 </button>
-                <ChatWindow />
+                {activeMode === ChatMode.Todo ? <TodoWindow /> : <ChatWindow />}
             </main>
         </div>
     );

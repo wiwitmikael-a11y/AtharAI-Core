@@ -5,6 +5,7 @@ export const MODELS: { [key in ChatMode]: string } = {
   [ChatMode.General]: "Llama 3 8B (via Groq)",
   [ChatMode.Coding]: "Llama 3 8B (via Groq)",
   [ChatMode.Media]: "Stable Diffusion XL (via Fireworks.ai)",
+  [ChatMode.Todo]: "Local Task Management",
 };
 
 export const INITIAL_MESSAGES: { [key in ChatMode]: ChatMessage } = {
@@ -19,6 +20,10 @@ export const INITIAL_MESSAGES: { [key in ChatMode]: ChatMessage } = {
   [ChatMode.Media]: {
     role: 'model',
     content: "Welcome to Media Mode. Using Stable Diffusion XL via Fireworks.ai, I can generate high-quality images. What visual concept do you have in mind?",
+  },
+  [ChatMode.Todo]: {
+    role: 'model', // This is just a placeholder and won't be displayed
+    content: "Welcome to your To-Do list.",
   },
 };
 
@@ -58,6 +63,15 @@ export const MODE_DETAILS = {
       </svg>
     ),
     placeholder: 'Describe the image to generate...'
+  },
+  [ChatMode.Todo]: {
+    name: 'To-Do List',
+    icon: (
+      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+      </svg>
+    ),
+    placeholder: 'Add a new task...'
   }
 };
 
@@ -94,5 +108,11 @@ export const CopiedIcon = () => (
 export const StopIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
       <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1zm4 0a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+    </svg>
+);
+
+export const TrashIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+        <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clipRule="evenodd" />
     </svg>
 );
