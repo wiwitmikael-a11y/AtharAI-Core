@@ -1,0 +1,5 @@
+{
+  "name": "AtharAI Core",
+  "description": "A modern chat interface powered by Hugging Face models, offering modes for general conversation, coding assistance, and image generation. This is a premium, responsive, and professional AI tool ready for deployment.",
+  "requestFramePermissions": []
+}
