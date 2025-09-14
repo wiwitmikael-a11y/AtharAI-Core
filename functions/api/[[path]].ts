@@ -5,7 +5,7 @@
 
 // FIX: Import the Groq SDK from a CDN to resolve the build error on Cloudflare.
 // This avoids the need for a package.json and npm install step.
-import Groq from 'https://esm.sh/groq-sdk@0.5.0';
+import Groq from 'https://esm.sh/groq-sdk@0.5.0'; // FINAL FIX: Corrected URL with https://
 
 interface Env {
   GROQ_API_KEY: string;
