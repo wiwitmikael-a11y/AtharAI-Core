@@ -44,53 +44,70 @@ export const onRequest = async (context: { request: Request; env: Env; waitUntil
       return new Response("API keys for Groq and/or Fireworks are not configured.", { status: 500 });
     }
 
-    const groq = new Groq({ apiKey: groqApiKey });
-
     // Routing
     if (url.pathname.startsWith('/api/stream')) {
-        const { mode, history, prompt } = await request.json() as { mode: ChatMode.General | ChatMode.Coding, history: ChatMessage[], prompt: string };
-        
-        const systemPrompt = mode === ChatMode.Coding 
-            ? "You are a world-class expert software engineer. Provide clear, concise, and correct code. Use markdown for code blocks with language identifiers."
-            : "You are a helpful and friendly AI assistant. Be insightful and thorough in your responses.";
-        
-        const messages = [
-            { role: 'system', content: systemPrompt },
-            ...buildGroqHistory(history),
-            { role: 'user', content: prompt }
-        ];
+        try {
+            const { mode, history, prompt } = await request.json() as { mode: ChatMode.General | ChatMode.Coding, history: ChatMessage[], prompt: string };
+            
+            const groq = new Groq({ apiKey: groqApiKey });
 
-        const groqStream = await groq.chat.completions.create({
-            model: 'llama3-8b-8192', // State-of-the-art open source model
-            messages,
-            stream: true,
-        });
+            const systemPrompt = mode === ChatMode.Coding 
+                ? "You are a world-class expert software engineer. Provide clear, concise, and correct code. Use markdown for code blocks with language identifiers."
+                : "You are a helpful and friendly AI assistant. Be insightful and thorough in your responses.";
+            
+            const messages = [
+                { role: 'system', content: systemPrompt },
+                ...buildGroqHistory(history),
+                { role: 'user', content: prompt }
+            ];
 
-        const { readable, writable } = new TransformStream();
-        const writer = writable.getWriter();
-        const encoder = new TextEncoder();
+            const groqStream = await groq.chat.completions.create({
+                model: 'llama3-8b-8192', // State-of-the-art open source model
+                messages,
+                stream: true,
+            });
 
-        const streamProcessor = async () => {
-            for await (const chunk of groqStream) {
-                const text = chunk.choices[0]?.delta?.content || '';
-                if (text) {
-                    const sseFormattedChunk = `data: ${JSON.stringify({ text })}\n\n`;
-                    await writer.write(encoder.encode(sseFormattedChunk));
+            const { readable, writable } = new TransformStream();
+            const writer = writable.getWriter();
+            const encoder = new TextEncoder();
+
+            const streamProcessor = async () => {
+                try {
+                    for await (const chunk of groqStream) {
+                        const text = chunk.choices[0]?.delta?.content || '';
+                        if (text) {
+                            const sseFormattedChunk = `data: ${JSON.stringify({ text })}\n\n`;
+                            await writer.write(encoder.encode(sseFormattedChunk));
+                        }
+                    }
+                } catch (error) {
+                    console.error("Error during stream processing:", error);
+                    const errorMessage = error instanceof Error ? error.message : "Unknown stream processing error";
+                    const errorChunk = `data: ${JSON.stringify({ error: errorMessage })}\n\n`;
+                    await writer.write(encoder.encode(errorChunk));
+                } finally {
+                    await writer.close();
                 }
-            }
-            await writer.close();
-        };
+            };
 
-        waitUntil(streamProcessor());
+            waitUntil(streamProcessor());
 
-        return new Response(readable, {
-            headers: { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache' }
-        });
+            return new Response(readable, {
+                headers: { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache' }
+            });
+
+        } catch (error) {
+            console.error("Error in /api/stream endpoint:", error);
+            const message = error instanceof Error ? error.message : "An unknown error occurred in the stream endpoint.";
+            return new Response(JSON.stringify({ error: "Backend stream failed", detail: message }), { 
+                status: 500,
+                headers: { 'Content-Type': 'application/json' }
+            });
+        }
 
     } else if (url.pathname.startsWith('/api/image')) {
-        const { prompt } = await request.json() as { prompt: string };
-        
         try {
+            const { prompt } = await request.json() as { prompt: string };
             const fireworksResponse = await fetch('https://api.fireworks.ai/inference/v1/text_to_image/accounts/fireworks/models/stable-diffusion-xl-1024-v1-0', {
                 method: 'POST',
                 headers: {
