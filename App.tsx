@@ -1,4 +1,4 @@
-import React, { useState, useContext } from 'react';
+import * as React from 'react';
 import { ChatMode } from './types';
 import { MODE_DETAILS } from './constants';
 import WelcomeScreen from './components/WelcomeScreen';
@@ -13,9 +13,9 @@ const HamburgerIcon = () => (
 );
 
 const AppLayout: React.FC = () => {
-    const [showWelcome, setShowWelcome] = useState(true);
-    const [isSidebarOpen, setSidebarOpen] = useState(false);
-    const context = useContext(AppContext);
+    const [showWelcome, setShowWelcome] = React.useState(true);
+    const [isSidebarOpen, setSidebarOpen] = React.useState(false);
+    const context = React.useContext(AppContext);
 
     if (!context) {
       return <div>Loading...</div>; // Or some other error state

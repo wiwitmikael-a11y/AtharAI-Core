@@ -1,4 +1,4 @@
-import React from 'react';
+import * as React from 'react';
 import { ChatMode, ChatMessage } from './types';
 
 export const MODELS: { [key in ChatMode]: string } = {

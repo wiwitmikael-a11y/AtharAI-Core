@@ -1,4 +1,4 @@
-import React, { createContext, useState, ReactNode } from 'react';
+import * as React from 'react';
 import { ChatMode, ChatMessage, ConversationHistory } from '../types';
 import { INITIAL_MESSAGES } from '../constants';
 
@@ -12,16 +12,16 @@ interface AppContextType {
   updateCurrentConversation: (messages: ChatMessage[]) => void;
 }
 
-export const AppContext = createContext<AppContextType | null>(null);
+export const AppContext = React.createContext<AppContextType | null>(null);
 
-export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [activeMode, setActiveMode] = useState<ChatMode>(ChatMode.General);
-  const [conversations, setConversations] = useState<ConversationHistory>({
+export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [activeMode, setActiveMode] = React.useState<ChatMode>(ChatMode.General);
+  const [conversations, setConversations] = React.useState<ConversationHistory>({
     [ChatMode.General]: [INITIAL_MESSAGES[ChatMode.General]],
     [ChatMode.Coding]: [INITIAL_MESSAGES[ChatMode.Coding]],
     [ChatMode.Media]: [INITIAL_MESSAGES[ChatMode.Media]],
   });
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = React.useState(false);
 
   const updateCurrentConversation = (messages: ChatMessage[]) => {
     setConversations(prev => ({ ...prev, [activeMode]: messages }));
